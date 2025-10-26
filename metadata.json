@@ -1,0 +1,5 @@
+{
+  "name": "Veritas AI Fact Checker",
+  "description": "A sleek, AI-powered web application that leverages Google Search grounding to verify claims and provide a confidence score, summary, and supporting evidence.",
+  "requestFramePermissions": []
+}
