@@ -1,9 +1,4 @@
-// This file is obsolete and no longer used by the application.
-// The app now uses the client-side services/geminiService.ts for all API calls.
-// This placeholder handler prevents Vercel build warnings. The file can be safely deleted.
-export default function handler(req, res) {
-    res.status(410).json({ 
-        error: 'Gone',
-        message: 'This API endpoint is deprecated and no longer in use.' 
-    });
-}
+// This file is obsolete and should be deleted.
+// The application logic has been moved to the client-side in `services/geminiService.ts`.
+// The error you are seeing on Vercel is likely from an old deployment of this file.
+// Please redeploy your project after deleting this file to resolve the issue.

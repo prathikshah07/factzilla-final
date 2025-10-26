@@ -39,8 +39,8 @@ const ApiKeyScreen: React.FC<ApiKeyScreenProps> = ({ onSave }) => {
     };
 
     return (
-        <div className="flex flex-col h-full p-6 md:p-8 space-y-6 justify-center text-center">
-            <h1 className="text-3xl font-bold text-white">Veritas AI</h1>
+        <div className="flex flex-col flex-grow h-full p-6 md:p-8 space-y-6 justify-center text-center">
+            <h1 className="text-3xl font-bold text-white">Factzilla</h1>
             <p className="text-gray-300">Please enter your Google AI Studio API Key to continue.</p>
             <div className="bg-[#2D2A5C] p-4 rounded-2xl shadow-lg">
                  <input
@@ -74,12 +74,14 @@ interface InputScreenProps {
     onChangeApiKey: () => void;
 }
 const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled, onChangeApiKey }) => (
-    <div className="flex flex-col h-full p-6 md:p-8 space-y-6">
+    <div className="flex flex-col flex-grow p-6 md:p-8 space-y-6">
         <header className="flex items-center justify-between text-white">
             <div>
-                <h1 className="text-2xl font-bold">Veritas AI</h1>
+                <h1 className="text-2xl font-bold">Factzilla</h1>
             </div>
-             <button onClick={onChangeApiKey} className="text-xs text-gray-400 hover:underline">Change API Key</button>
+             <button onClick={onChangeApiKey} className="bg-indigo-900/50 hover:bg-indigo-900/80 text-white font-semibold py-2 px-6 rounded-full transition-colors">
+                Analyst
+             </button>
         </header>
 
         <main className="flex-grow flex flex-col justify-center space-y-6">
@@ -125,7 +127,7 @@ interface ReportScreenProps {
 const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onReset }) => {
     const verdictStyle = getVerdictStyle(result.verdict);
     return (
-    <div className="flex flex-col h-full p-6 md:p-8 space-y-6">
+    <div className="flex flex-col flex-grow p-6 md:p-8 space-y-6">
         <header className="flex items-center text-white">
             <button onClick={onReset} className="p-2 -ml-2 transition-transform duration-200 active:scale-95">
                 <BackArrowIcon className="w-8 h-8" />
@@ -134,7 +136,7 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onR
             <div className="w-8"></div>
         </header>
 
-        <main className="flex-grow flex flex-col space-y-6 overflow-y-auto pb-6">
+        <main className="flex-grow flex flex-col space-y-6 overflow-y-auto pb-6 min-h-0">
             <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg space-y-4 text-white">
                  <p className="font-medium italic">"{claim}"</p>
             </div>
@@ -275,7 +277,7 @@ const App: React.FC = () => {
         }
         
         return (
-            <div className="relative h-full">
+            <div className="relative flex-grow flex flex-col">
                 <InputScreen 
                     claim={claim} 
                     setClaim={setClaim} 
@@ -295,7 +297,7 @@ const App: React.FC = () => {
 
     return (
         <div className="w-full max-w-lg mx-auto h-full min-h-screen md:h-auto md:min-h-0 md:max-h-[90vh] md:my-8 bg-[#201F3C] text-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex-grow">
+            <div className="flex-grow min-h-0 flex flex-col">
               {renderContent()}
             </div>
         </div>

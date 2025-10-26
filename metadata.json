@@ -1,5 +1,5 @@
 {
-  "name": "Veritas AI Fact Checker",
+  "name": "Factzilla",
   "description": "An AI-powered fact-checking application that uses Google Search to verify claims, providing a verdict, confidence score, summary, and sources.",
   "requestFramePermissions": []
 }
