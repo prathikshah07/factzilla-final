@@ -35,8 +35,7 @@ const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck 
     <div className="flex flex-col h-full p-6 md:p-8 space-y-6">
         <header className="flex items-center justify-between text-white">
             <div>
-                <h1 className="text-2xl font-bold">Veritas</h1>
-                <p className="text-sm text-gray-400">AI Fact Checker</p>
+                <h1 className="text-2xl font-bold">Factzilla</h1>
             </div>
             <div className="flex items-center space-x-3 bg-[#2D2A5C] p-2 rounded-full">
                 <img src="https://picsum.photos/seed/analyst/40/40" alt="Analyst" className="w-10 h-10 rounded-full" />
