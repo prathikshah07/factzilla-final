@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { performFactCheck } from './services/geminiService';
+import { GoogleGenAI } from '@google/genai';
 import type { VerificationResult, GroundingChunk, Verdict } from './types';
 import { 
     BackArrowIcon, LinkIcon, CheckCircleIcon, XCircleIcon, 
@@ -26,6 +26,31 @@ const getVerdictStyle = (verdict: Verdict) => {
     const key = verdict.toUpperCase().trim();
     return verdictStyles[key] || verdictStyles['UNSUPPORTED'];
 };
+
+// --- Gemini AI Configuration ---
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const systemInstruction = `You are a meticulous fact-checking AI. Your purpose is to analyze a given claim, use the provided Google Search results to determine its veracity, and return a structured JSON response.
+
+The JSON object you return must have the following structure and nothing else:
+{
+  "verdict": "string",
+  "confidence_score": number,
+  "summary_explanation": "string"
+}
+
+- "verdict": Must be one of the following strings: 'TRUE', 'FALSE', 'MISLEADING', 'UNSUPPORTED'.
+- "confidence_score": Must be an integer between 0 and 100, representing your confidence in the verdict.
+- "summary_explanation": A concise, neutral explanation for your verdict based on the search results.
+
+Analyze the user's claim and provide your response ONLY in the specified JSON format. Do not include any other text, markdown, or explanations outside of the JSON object.
+
+For example, for the claim "The sky is green", your response should be a single JSON object like this:
+{
+  "verdict": "FALSE",
+  "confidence_score": 100,
+  "summary_explanation": "Scientific evidence and common observation confirm that the Earth's sky appears blue during the day due to Rayleigh scattering of sunlight in the atmosphere. It is not green."
+}`;
+
 
 // --- Sub-components ---
 
@@ -200,24 +225,55 @@ const App: React.FC = () => {
 
     const handleFactCheck = useCallback(async () => {
         if (!claim.trim()) return;
+        if (!process.env.API_KEY) {
+            setError("API_KEY is not configured. Please set it up in your environment.");
+            return;
+        }
 
         setIsLoading(true);
         setError(null);
         setResult(null);
         
         try {
-            const { result: apiResult, sources: apiSources } = await performFactCheck(claim);
+             const response = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: claim,
+                config: {
+                    systemInstruction: systemInstruction,
+                    tools: [{googleSearch: {}}],
+                },
+            });
+
+            const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+            const apiSources = groundingMetadata?.groundingChunks ?? [];
+            
+            // Clean the raw text response to ensure it's a valid JSON string
+            const resultText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
+
+            if (!resultText) {
+                throw new Error("The API returned an empty response. The claim might be un-verifiable.");
+            }
+
+            const apiResult = JSON.parse(resultText);
+
+            // Basic validation of the parsed response
+            if (!apiResult.verdict || apiResult.confidence_score === undefined || !apiResult.summary_explanation) {
+                 throw new Error("The API response was missing required fields.");
+            }
+
             setResult(apiResult);
             setSources(apiSources);
             setScreen('report');
         } catch (err: any) {
-            let errorMessage = err.message || 'An unexpected error occurred.';
-            if (errorMessage.includes('Failed to fetch')) {
-                errorMessage = 'Could not connect to the backend server. Please ensure it is running on http://localhost:3000 and try again.';
+            console.error("Error during Gemini API call:", err);
+            let errorMessage = 'An unexpected error occurred while contacting the Gemini API.';
+            if (err instanceof SyntaxError) {
+                errorMessage = "Failed to parse the API response. The model may have returned an invalid format.";
+            } else if (err.message) {
+                errorMessage = err.message;
             }
             setError(errorMessage);
-            // Stay on input screen if there's an error
-            setScreen('input');
+            setScreen('input'); // Stay on input screen if there's an error
         } finally {
             setIsLoading(false);
         }
