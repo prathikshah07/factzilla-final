@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { performFactCheck } from './services/geminiService';
 import type { VerificationResult, GroundingChunk, Verdict } from './types';
 import { BackArrowIcon, NewspaperIcon, BeakerIcon, HeartIcon, LinkIcon } from './components/Icons';
@@ -23,25 +23,63 @@ const getVerdictStyle = (verdict: Verdict) => {
     return verdictStyles[key] || verdictStyles['UNSUPPORTED'];
 };
 
+// --- Sub-components ---
 
-// --- Sub-components defined outside App to prevent re-renders ---
+interface ApiKeyScreenProps {
+    onSave: (apiKey: string) => void;
+}
+
+const ApiKeyScreen: React.FC<ApiKeyScreenProps> = ({ onSave }) => {
+    const [key, setKey] = useState('');
+
+    const handleSave = () => {
+        if (key.trim()) {
+            onSave(key.trim());
+        }
+    };
+
+    return (
+        <div className="flex flex-col h-full p-6 md:p-8 space-y-6 justify-center text-center">
+            <h1 className="text-3xl font-bold text-white">Veritas AI</h1>
+            <p className="text-gray-300">Please enter your Google AI Studio API Key to continue.</p>
+            <div className="bg-[#2D2A5C] p-4 rounded-2xl shadow-lg">
+                 <input
+                    type="password"
+                    value={key}
+                    onChange={(e) => setKey(e.target.value)}
+                    placeholder="Enter your API Key"
+                    className="w-full bg-transparent text-white text-lg text-center focus:outline-none"
+                />
+            </div>
+            <button
+                onClick={handleSave}
+                disabled={!key.trim()}
+                className="w-full bg-[#FFC947] text-[#2D2A5C] font-bold text-lg py-4 rounded-full shadow-lg transition-transform duration-200 active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+                Save and Continue
+            </button>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:underline">
+                Get your Google AI Studio API Key here
+            </a>
+        </div>
+    );
+};
+
 
 interface InputScreenProps {
     claim: string;
     setClaim: (claim: string) => void;
     onFactCheck: () => void;
     disabled: boolean;
+    onChangeApiKey: () => void;
 }
-const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled }) => (
+const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled, onChangeApiKey }) => (
     <div className="flex flex-col h-full p-6 md:p-8 space-y-6">
         <header className="flex items-center justify-between text-white">
             <div>
                 <h1 className="text-2xl font-bold">Veritas AI</h1>
             </div>
-            <div className="flex items-center space-x-3 bg-[#2D2A5C] p-2 rounded-full">
-                <img src="https://picsum.photos/seed/analyst/40/40" alt="Analyst" className="w-10 h-10 rounded-full" />
-                <span className="pr-3 font-medium">Analyst</span>
-            </div>
+             <button onClick={onChangeApiKey} className="text-xs text-gray-400 hover:underline">Change API Key</button>
         </header>
 
         <main className="flex-grow flex flex-col justify-center space-y-6">
@@ -144,10 +182,10 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onR
 };
 
 const loadingMessages = [
-    'Engaging neural networks...',
-    'Consulting knowledge graphs...',
-    'Synthesizing information...',
-    'Compiling verification report...',
+    'Searching the web...',
+    'Analyzing sources...',
+    'Consulting with AI...',
+    'Finalizing verdict...',
 ];
 
 const LoadingScreen: React.FC = () => {
@@ -171,6 +209,7 @@ const LoadingScreen: React.FC = () => {
 
 
 const App: React.FC = () => {
+    const [apiKey, setApiKey] = useState<string | null>(null);
     const [screen, setScreen] = useState<Screen>('input');
     const [claim, setClaim] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -178,15 +217,22 @@ const App: React.FC = () => {
     const [result, setResult] = useState<VerificationResult | null>(null);
     const [sources, setSources] = useState<GroundingChunk[]>([]);
 
+    useEffect(() => {
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) {
+            setApiKey(savedKey);
+        }
+    }, []);
+
     const handleFactCheck = useCallback(async () => {
-        if (!claim.trim()) return;
+        if (!claim.trim() || !apiKey) return;
 
         setIsLoading(true);
         setError(null);
         setResult(null);
-
+        
         try {
-            const { result: apiResult, sources: apiSources } = await performFactCheck(claim);
+            const { result: apiResult, sources: apiSources } = await performFactCheck(claim, apiKey);
             setResult(apiResult);
             setSources(apiSources);
             setScreen('report');
@@ -195,7 +241,7 @@ const App: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [claim]);
+    }, [claim, apiKey]);
 
     const handleReset = () => {
         setScreen('input');
@@ -205,7 +251,21 @@ const App: React.FC = () => {
         setIsLoading(false);
     };
 
+    const handleSaveApiKey = (key: string) => {
+        localStorage.setItem('gemini_api_key', key);
+        setApiKey(key);
+    };
+
+    const handleChangeApiKey = () => {
+        localStorage.removeItem('gemini_api_key');
+        setApiKey(null);
+    }
+
     const renderContent = () => {
+        if (!apiKey) {
+            return <ApiKeyScreen onSave={handleSaveApiKey} />;
+        }
+
         if (isLoading) {
             return <LoadingScreen />;
         }
@@ -216,7 +276,13 @@ const App: React.FC = () => {
         
         return (
             <div className="relative h-full">
-                <InputScreen claim={claim} setClaim={setClaim} onFactCheck={handleFactCheck} disabled={isLoading} />
+                <InputScreen 
+                    claim={claim} 
+                    setClaim={setClaim} 
+                    onFactCheck={handleFactCheck} 
+                    disabled={isLoading}
+                    onChangeApiKey={handleChangeApiKey}
+                />
                  {error && (
                     <div className="absolute bottom-6 left-6 right-6 bg-red-500 text-white p-3 rounded-lg text-center shadow-lg flex justify-between items-center">
                         <span><strong>Error:</strong> {error}</span>
