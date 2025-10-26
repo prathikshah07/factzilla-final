@@ -1,5 +1,5 @@
 {
   "name": "Factzilla",
-  "description": "An AI-powered fact-checking application that uses Google Search to verify claims, providing a verdict, confidence score, summary, and sources.",
+  "description": "Factzilla, your friendly neighborhood fact monster, stomps out misinformation using AI and Google Search.",
   "requestFramePermissions": []
 }

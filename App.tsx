@@ -1,21 +1,25 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { performFactCheck } from './services/geminiService';
 import type { VerificationResult, GroundingChunk, Verdict } from './types';
-import { BackArrowIcon, NewspaperIcon, BeakerIcon, HeartIcon, LinkIcon } from './components/Icons';
+import { 
+    BackArrowIcon, LinkIcon, CheckCircleIcon, XCircleIcon, 
+    ExclamationTriangleIcon, QuestionMarkCircleIcon, GlobeAltIcon, 
+    CpuChipIcon, SparklesIcon, FactzillaIcon 
+} from './components/Icons';
 
 type Screen = 'input' | 'report';
 
 const exampleScenarios = [
-    { id: 'political', icon: NewspaperIcon, text: 'Political Headline', claim: 'A new study shows that the recent tax cuts for corporations led to a 50% increase in job creation nationwide.' },
-    { id: 'scientific', icon: BeakerIcon, text: 'Scientific Study', claim: 'Researchers have discovered that drinking coffee can reverse the effects of aging at a cellular level.' },
-    { id: 'health', icon: HeartIcon, text: 'Health/Medical', claim: 'Eating a tablespoon of apple cider vinegar every day is a proven method for losing 20 pounds in a month.' },
+    { id: 'space', icon: GlobeAltIcon, text: 'Space Fact', claim: 'Is the Great Wall of China visible from space with the naked eye?' },
+    { id: 'biology', icon: CpuChipIcon, text: 'Biology Myth', claim: 'Humans only use 10% of their brains.' },
+    { id: 'animal', icon: SparklesIcon, text: 'Animal Myth', claim: 'Goldfish have a three-second memory.' },
 ];
 
-const verdictStyles: Record<string, { bg: string, text: string, border: string, progress: string }> = {
-    'TRUE': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-500', progress: 'bg-green-500' },
-    'FALSE': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-500', progress: 'bg-red-500' },
-    'MISLEADING': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-500', progress: 'bg-yellow-500' },
-    'UNSUPPORTED': { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-500', progress: 'bg-gray-500' },
+const verdictStyles: Record<string, { bg: string, text: string, border: string, progress: string, icon: React.FC<{className?: string}> }> = {
+    'TRUE': { bg: 'bg-green-900/50', text: 'text-green-300', border: 'border-green-500', progress: 'bg-green-500', icon: CheckCircleIcon },
+    'FALSE': { bg: 'bg-red-900/50', text: 'text-red-300', border: 'border-red-500', progress: 'bg-red-500', icon: XCircleIcon },
+    'MISLEADING': { bg: 'bg-orange-900/50', text: 'text-orange-300', border: 'border-orange-500', progress: 'bg-orange-500', icon: ExclamationTriangleIcon },
+    'UNSUPPORTED': { bg: 'bg-slate-700/50', text: 'text-slate-300', border: 'border-slate-500', progress: 'bg-slate-500', icon: QuestionMarkCircleIcon },
 };
 
 const getVerdictStyle = (verdict: Verdict) => {
@@ -25,92 +29,52 @@ const getVerdictStyle = (verdict: Verdict) => {
 
 // --- Sub-components ---
 
-interface ApiKeyScreenProps {
-    onSave: (apiKey: string) => void;
-}
-
-const ApiKeyScreen: React.FC<ApiKeyScreenProps> = ({ onSave }) => {
-    const [key, setKey] = useState('');
-
-    const handleSave = () => {
-        if (key.trim()) {
-            onSave(key.trim());
-        }
-    };
-
-    return (
-        <div className="flex flex-col flex-grow h-full p-6 md:p-8 space-y-6 justify-center text-center">
-            <h1 className="text-3xl font-bold text-white">Factzilla</h1>
-            <p className="text-gray-300">Please enter your Google AI Studio API Key to continue.</p>
-            <div className="bg-[#2D2A5C] p-4 rounded-2xl shadow-lg">
-                 <input
-                    type="password"
-                    value={key}
-                    onChange={(e) => setKey(e.target.value)}
-                    placeholder="Enter your API Key"
-                    className="w-full bg-transparent text-white text-lg text-center focus:outline-none"
-                />
-            </div>
-            <button
-                onClick={handleSave}
-                disabled={!key.trim()}
-                className="w-full bg-[#FFC947] text-[#2D2A5C] font-bold text-lg py-4 rounded-full shadow-lg transition-transform duration-200 active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed"
-            >
-                Save and Continue
-            </button>
-            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 hover:underline">
-                Get your Google AI Studio API Key here
-            </a>
-        </div>
-    );
-};
-
-
 interface InputScreenProps {
     claim: string;
     setClaim: (claim: string) => void;
     onFactCheck: () => void;
     disabled: boolean;
-    onChangeApiKey: () => void;
 }
-const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled, onChangeApiKey }) => (
+const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled }) => (
     <div className="flex flex-col flex-grow p-6 md:p-8 space-y-6">
-        <header className="flex items-center justify-between text-white">
-            <div>
-                <h1 className="text-2xl font-bold">Factzilla</h1>
-            </div>
-             <button onClick={onChangeApiKey} className="bg-indigo-900/50 hover:bg-indigo-900/80 text-white font-semibold py-2 px-6 rounded-full transition-colors">
-                Analyst
-             </button>
+        <header className="text-center flex flex-col items-center space-y-2">
+            <FactzillaIcon className="w-16 h-16 text-purple-400" />
+            <h1 className="text-5xl font-bold text-yellow-400 tracking-tighter" style={{fontFamily: "'Bangers', cursive"}}>Factzilla</h1>
+            <p className="text-purple-300 font-medium">Your Friendly Neighborhood Fact Monster</p>
         </header>
 
         <main className="flex-grow flex flex-col justify-center space-y-6">
-            <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg">
-                <label htmlFor="claim-input" className="text-gray-400 font-medium">Enter Claim for Verification</label>
+            <div className="bg-purple-900/70 p-6 rounded-2xl shadow-lg ring-1 ring-yellow-400/20">
+                <label htmlFor="claim-input" className="text-purple-300 font-medium text-sm">Enter a claim for Factzilla to stomp</label>
                 <textarea
                     id="claim-input"
                     value={claim}
                     onChange={(e) => setClaim(e.target.value)}
                     placeholder="e.g., The moon is made of cheese..."
-                    className="w-full h-32 bg-transparent text-white text-lg mt-2 resize-none focus:outline-none"
+                    className="w-full h-32 bg-transparent text-slate-100 text-lg mt-2 resize-none focus:outline-none placeholder:text-purple-400/50"
+                    aria-label="Claim input"
                 />
             </div>
              <button
                 onClick={onFactCheck}
                 disabled={!claim.trim() || disabled}
-                className="w-full bg-[#FFC947] text-[#2D2A5C] font-bold text-lg py-4 rounded-full shadow-lg transition-transform duration-200 active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed"
+                className="w-full bg-yellow-400 text-purple-950 font-bold text-lg py-4 rounded-full shadow-lg transition-all duration-200 hover:bg-yellow-300 active:scale-95 disabled:bg-purple-800 disabled:text-purple-400 disabled:cursor-not-allowed"
             >
-                Fact Check Now
+                Verify Claim
             </button>
         </main>
 
         <footer className="space-y-4">
-            <h2 className="text-white font-semibold">Example Scenarios</h2>
-            <div className="flex space-x-4 overflow-x-auto pb-4 -mx-6 px-6">
+            <h2 className="text-slate-100 font-semibold text-center">Or try a sample claim</h2>
+            <div className="grid grid-cols-3 gap-4">
                 {exampleScenarios.map(scenario => (
-                    <button key={scenario.id} onClick={() => setClaim(scenario.claim)} className="flex-shrink-0 flex flex-col items-center justify-center space-y-2 text-white bg-[#2D2A5C] w-28 h-28 rounded-3xl p-2 text-center text-xs font-medium transition-transform duration-200 active:scale-95">
-                        <scenario.icon className="w-8 h-8"/>
-                        <span>{scenario.text}</span>
+                    <button 
+                        key={scenario.id} 
+                        onClick={() => setClaim(scenario.claim)} 
+                        className="flex flex-col items-center justify-center space-y-2 text-slate-200 bg-purple-900/70 hover:bg-purple-800/80 rounded-xl p-3 text-center text-xs font-medium transition-all duration-200 active:scale-95 ring-1 ring-white/10 h-28"
+                    >
+                        <scenario.icon className="w-8 h-8 text-yellow-400"/>
+                        <span className="leading-tight">{scenario.text}</span>
                     </button>
                 ))}
             </div>
@@ -126,52 +90,68 @@ interface ReportScreenProps {
 }
 const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onReset }) => {
     const verdictStyle = getVerdictStyle(result.verdict);
+    const VerdictIcon = verdictStyle.icon;
+
     return (
-    <div className="flex flex-col flex-grow p-6 md:p-8 space-y-6">
-        <header className="flex items-center text-white">
-            <button onClick={onReset} className="p-2 -ml-2 transition-transform duration-200 active:scale-95">
-                <BackArrowIcon className="w-8 h-8" />
+    <div className="flex flex-col flex-grow p-4 md:p-6 space-y-4 min-h-0">
+        <header className="flex items-center text-slate-100">
+            <button onClick={onReset} className="p-2 -ml-2 transition-transform duration-200 active:scale-95" aria-label="Go back">
+                <BackArrowIcon className="w-7 h-7" />
             </button>
-            <h1 className="text-xl font-bold text-center flex-grow">Verification Report</h1>
-            <div className="w-8"></div>
+            <h1 className="text-xl font-bold text-center flex-grow">Factzilla's Report</h1>
+            <div className="w-7"></div>
         </header>
 
-        <main className="flex-grow flex flex-col space-y-6 overflow-y-auto pb-6 min-h-0">
-            <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg space-y-4 text-white">
+        <main className="flex-grow flex flex-col space-y-4 overflow-y-auto pb-4 px-2 min-h-0">
+            <div className="bg-purple-900 p-4 rounded-xl shadow-lg space-y-4 text-slate-100 ring-1 ring-white/10">
                  <p className="font-medium italic">"{claim}"</p>
             </div>
             
-            <div className={`${verdictStyle.bg} ${verdictStyle.text} p-6 rounded-[40px] shadow-lg space-y-4`}>
-                <div className="space-y-2">
-                    <div className="flex justify-between items-center font-bold">
-                       <span>Verdict</span>
-                       <span>Confidence</span>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                       <div className={`px-4 py-1 rounded-full font-bold text-lg border-2 ${verdictStyle.border}`}>
-                            {result.verdict.toUpperCase()}
-                        </div>
-                        <div className="w-full bg-gray-300/50 rounded-full h-2.5">
-                            <div className={`${verdictStyle.progress} h-2.5 rounded-full`} style={{ width: `${result.confidence_score}%` }}></div>
-                        </div>
-                        <span className="font-bold w-12 text-right">{result.confidence_score}%</span>
+            <div className={`${verdictStyle.bg} p-5 rounded-xl shadow-lg space-y-4 text-slate-100 ring-1 ${verdictStyle.border}`}>
+                <div className="flex items-center space-x-3">
+                    <VerdictIcon className={`w-10 h-10 flex-shrink-0 ${verdictStyle.text}`} />
+                    <div>
+                        <span className="text-slate-300 font-medium">Verdict</span>
+                        <p className={`font-bold text-2xl ${verdictStyle.text}`}>{result.verdict.toUpperCase()}</p>
                     </div>
                 </div>
-                <div className="border-t border-gray-400/30 pt-4">
-                    <h2 className="text-lg font-bold">Summary</h2>
-                    <p>{result.summary_explanation}</p>
+
+                <div>
+                    <div className="flex justify-between items-center font-bold text-slate-300 mb-1">
+                       <span className="text-sm">Confidence Score</span>
+                       <span className={`text-sm ${verdictStyle.text}`}>{result.confidence_score}%</span>
+                    </div>
+                    <div className="w-full bg-slate-600/50 rounded-full h-2">
+                        <div className={`${verdictStyle.progress} h-2 rounded-full`} style={{ width: `${result.confidence_score}%` }}></div>
+                    </div>
+                </div>
+
+                <div className="border-t border-slate-500/30 pt-4">
+                    <h2 className="text-lg font-bold text-slate-100">Summary</h2>
+                    <p className="text-slate-200">{result.summary_explanation}</p>
                 </div>
             </div>
 
             {sources && sources.length > 0 && (
-                <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg text-white space-y-4">
-                    <h2 className="text-lg font-bold">Sources</h2>
-                    <ul className="space-y-3">
+                <div className="bg-purple-900 p-5 rounded-xl shadow-lg text-slate-100 space-y-3 ring-1 ring-white/10">
+                    <h2 className="text-lg font-bold text-yellow-400">Factzilla's Trail ({sources.length} {sources.length === 1 ? 'source' : 'sources'} found)</h2>
+                    <p className="text-sm text-purple-300 pb-2">These are the web pages used to verify the claim.</p>
+                    <ul className="space-y-2">
                         {sources.map((source, index) => source.web && (
-                            <li key={index} className="flex items-center space-x-3 bg-[#201F3C] p-3 rounded-lg">
-                                <LinkIcon className="w-5 h-5 text-[#FFC947] flex-shrink-0" />
-                                <a href={source.web.uri} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" title={source.web.title}>
-                                    {source.web.title}
+                            <li key={index}>
+                                <a 
+                                    href={source.web.uri} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="flex items-start space-x-3 bg-purple-800/50 hover:bg-purple-800 p-3 rounded-lg ring-1 ring-white/5 transition-all duration-200"
+                                >
+                                    <LinkIcon className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-1" />
+                                    <div className="flex-1 overflow-hidden">
+                                        <p className="text-slate-200 hover:underline text-sm font-medium" title={source.web.title}>
+                                            {source.web.title}
+                                        </p>
+                                        <p className="text-xs text-purple-400 truncate">{source.web.uri}</p>
+                                    </div>
                                 </a>
                             </li>
                         ))}
@@ -184,10 +164,10 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onR
 };
 
 const loadingMessages = [
-    'Searching the web...',
-    'Analyzing sources...',
-    'Consulting with AI...',
-    'Finalizing verdict...',
+    'Waking the monster...',
+    'Stomping through the web...',
+    'Sniffing out the facts...',
+    'Delivering the verdict...',
 ];
 
 const LoadingScreen: React.FC = () => {
@@ -201,17 +181,16 @@ const LoadingScreen: React.FC = () => {
     }, []);
 
     return (
-        <div className="flex flex-col items-center justify-center h-full text-white p-8">
-            <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-[#FFC947]"></div>
+        <div className="flex flex-col items-center justify-center h-full text-slate-100 p-8 text-center">
+            <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-yellow-400"></div>
             <h2 className="text-2xl font-bold mt-6">Verifying...</h2>
-            <p className="text-lg mt-2 text-gray-300 transition-opacity duration-500">{loadingMessages[messageIndex]}</p>
+            <p className="text-lg mt-2 text-purple-300 transition-opacity duration-500">{loadingMessages[messageIndex]}</p>
         </div>
     )
 };
 
 
 const App: React.FC = () => {
-    const [apiKey, setApiKey] = useState<string | null>(null);
     const [screen, setScreen] = useState<Screen>('input');
     const [claim, setClaim] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -219,55 +198,37 @@ const App: React.FC = () => {
     const [result, setResult] = useState<VerificationResult | null>(null);
     const [sources, setSources] = useState<GroundingChunk[]>([]);
 
-    useEffect(() => {
-        const savedKey = localStorage.getItem('gemini_api_key');
-        if (savedKey) {
-            setApiKey(savedKey);
-        }
-    }, []);
-
     const handleFactCheck = useCallback(async () => {
-        if (!claim.trim() || !apiKey) return;
+        if (!claim.trim()) return;
 
         setIsLoading(true);
         setError(null);
         setResult(null);
         
         try {
-            const { result: apiResult, sources: apiSources } = await performFactCheck(claim, apiKey);
+            const { result: apiResult, sources: apiSources } = await performFactCheck(claim);
             setResult(apiResult);
             setSources(apiSources);
             setScreen('report');
         } catch (err: any) {
             setError(err.message || 'An unexpected error occurred.');
+            // Stay on input screen if there's an error
+            setScreen('input');
         } finally {
             setIsLoading(false);
         }
-    }, [claim, apiKey]);
+    }, [claim]);
 
     const handleReset = () => {
         setScreen('input');
+        // Do not clear the claim so user can edit it if they want
         setResult(null);
         setSources([]);
         setError(null);
         setIsLoading(false);
     };
 
-    const handleSaveApiKey = (key: string) => {
-        localStorage.setItem('gemini_api_key', key);
-        setApiKey(key);
-    };
-
-    const handleChangeApiKey = () => {
-        localStorage.removeItem('gemini_api_key');
-        setApiKey(null);
-    }
-
     const renderContent = () => {
-        if (!apiKey) {
-            return <ApiKeyScreen onSave={handleSaveApiKey} />;
-        }
-
         if (isLoading) {
             return <LoadingScreen />;
         }
@@ -276,29 +237,27 @@ const App: React.FC = () => {
             return <ReportScreen claim={claim} result={result} sources={sources} onReset={handleReset} />;
         }
         
+        // Default to input screen
         return (
-            <div className="relative flex-grow flex flex-col">
-                <InputScreen 
-                    claim={claim} 
-                    setClaim={setClaim} 
-                    onFactCheck={handleFactCheck} 
-                    disabled={isLoading}
-                    onChangeApiKey={handleChangeApiKey}
-                />
-                 {error && (
-                    <div className="absolute bottom-6 left-6 right-6 bg-red-500 text-white p-3 rounded-lg text-center shadow-lg flex justify-between items-center">
-                        <span><strong>Error:</strong> {error}</span>
-                        <button onClick={() => setError(null)} className="font-bold text-xl px-2 leading-none">&times;</button>
-                    </div>
-                )}
-            </div>
+             <InputScreen 
+                claim={claim} 
+                setClaim={setClaim} 
+                onFactCheck={handleFactCheck} 
+                disabled={isLoading}
+            />
         );
     };
 
     return (
-        <div className="w-full max-w-lg mx-auto h-full min-h-screen md:h-auto md:min-h-0 md:max-h-[90vh] md:my-8 bg-[#201F3C] text-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
-            <div className="flex-grow min-h-0 flex flex-col">
+        <div className="w-full max-w-lg mx-auto h-screen md:h-auto md:min-h-0 md:max-h-[95vh] md:my-4 bg-purple-950 text-slate-100 rounded-lg shadow-2xl overflow-hidden flex flex-col ring-1 ring-white/10">
+            <div className="flex-grow min-h-0 flex flex-col relative">
               {renderContent()}
+              {error && !isLoading && (
+                    <div className="absolute bottom-4 left-4 right-4 bg-red-500 text-white p-3 rounded-lg text-center shadow-lg flex justify-between items-center animate-pulse">
+                        <span className="text-sm"><strong>Error:</strong> {error}</span>
+                        <button onClick={() => setError(null)} className="font-bold text-xl px-2 leading-none" aria-label="Dismiss error">&times;</button>
+                    </div>
+                )}
             </div>
         </div>
     );

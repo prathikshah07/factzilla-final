@@ -4,11 +4,13 @@ import type { VerificationResult, GroundingChunk } from '../types';
 /**
  * Performs a fact check using the Google Gemini API with Google Search grounding.
  * @param claim The claim string to be verified.
- * @param apiKey The Google AI Studio API key.
  * @returns A promise that resolves with the verification result and sources.
  */
-export async function performFactCheck(claim: string, apiKey: string): Promise<{ result: VerificationResult; sources: GroundingChunk[] }> {
-  const ai = new GoogleGenAI({ apiKey });
+export async function performFactCheck(claim: string): Promise<{ result: VerificationResult; sources: GroundingChunk[] }> {
+  if (!process.env.API_KEY) {
+    throw new Error("API_KEY is not configured. Please see the instructions in the README.");
+  }
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const systemInstruction = `You are a meticulous fact-checking AI. Your purpose is to analyze a given claim, use the provided Google Search results to determine its veracity, and return a structured JSON response.
 
@@ -66,7 +68,7 @@ For example, for the claim "The sky is green", your response should be a single 
   } catch (error: any) {
     console.error("Error during Gemini API call:", error);
     if (error.message.includes('API key not valid')) {
-        throw new Error('Authentication failed. Please check if your Google AI Studio API Key is correct.');
+        throw new Error('Authentication failed. The provided API key is not valid.');
     }
     throw new Error(error.message || 'An unexpected error occurred while contacting the Gemini API.');
   }
