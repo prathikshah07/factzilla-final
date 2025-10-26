@@ -1,13 +1,5 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es6",
-    "esModuleInterop": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "outDir": "./dist"
-  },
-  "include": [
-    "api/**/*.ts"
-  ]
+    "note": "This file is no longer used as the server-side component has been removed."
+  }
 }

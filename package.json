@@ -1,22 +1,5 @@
 {
-  "name": "factzilla-app",
+  "name": "factzilla-static-app",
   "version": "1.0.0",
-  "description": "Factzilla AI Fact Checker",
-  "main": "index.js",
-  "scripts": {
-    "start:api": "ts-node api/factcheck.ts"
-  },
-  "dependencies": {
-    "@google/genai": "^1.27.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2"
-  },
-  "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.14.12",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.5.4"
-  }
+  "description": "Static HTML/JS application. No build required. Open index.html to run."
 }
