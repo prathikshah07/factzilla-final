@@ -6,7 +6,7 @@ import { VerificationResult, GroundingChunk } from '../types';
  * @param claim The claim string to be verified.
  * @returns A promise that resolves with the verification result and sources.
  */
-export async function factCheckWithGemini(claim: string): Promise<{ result: VerificationResult; sources: GroundingChunk[] }> {
+export async function performFactCheck(claim: string): Promise<{ result: VerificationResult; sources: GroundingChunk[] }> {
   const response = await fetch('/api/factcheck', {
     method: 'POST',
     headers: {

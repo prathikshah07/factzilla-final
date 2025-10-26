@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { factCheckWithGemini } from './services/geminiService';
+import { performFactCheck } from './services/geminiService';
 import type { VerificationResult, GroundingChunk, Verdict } from './types';
 import { BackArrowIcon, NewspaperIcon, BeakerIcon, HeartIcon, LinkIcon } from './components/Icons';
 
@@ -11,15 +11,15 @@ const exampleScenarios = [
     { id: 'health', icon: HeartIcon, text: 'Health/Medical', claim: 'Eating a tablespoon of apple cider vinegar every day is a proven method for losing 20 pounds in a month.' },
 ];
 
-const verdictStyles: Record<Verdict, { bg: string, text: string, border: string }> = {
-    'TRUE': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-400' },
-    'FALSE': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-400' },
-    'MISLEADING': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-400' },
-    'UNSUPPORTED': { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-400' },
+const verdictStyles: Record<string, { bg: string, text: string, border: string, progress: string }> = {
+    'TRUE': { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-500', progress: 'bg-green-500' },
+    'FALSE': { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-500', progress: 'bg-red-500' },
+    'MISLEADING': { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-500', progress: 'bg-yellow-500' },
+    'UNSUPPORTED': { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-500', progress: 'bg-gray-500' },
 };
 
 const getVerdictStyle = (verdict: Verdict) => {
-    const key = verdict.toUpperCase();
+    const key = verdict.toUpperCase().trim();
     return verdictStyles[key] || verdictStyles['UNSUPPORTED'];
 };
 
@@ -30,8 +30,9 @@ interface InputScreenProps {
     claim: string;
     setClaim: (claim: string) => void;
     onFactCheck: () => void;
+    disabled: boolean;
 }
-const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck }) => (
+const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck, disabled }) => (
     <div className="flex flex-col h-full p-6 md:p-8 space-y-6">
         <header className="flex items-center justify-between text-white">
             <div>
@@ -56,7 +57,7 @@ const InputScreen: React.FC<InputScreenProps> = ({ claim, setClaim, onFactCheck 
             </div>
              <button
                 onClick={onFactCheck}
-                disabled={!claim.trim()}
+                disabled={!claim.trim() || disabled}
                 className="w-full bg-[#FFC947] text-[#2D2A5C] font-bold text-lg py-4 rounded-full shadow-lg transition-transform duration-200 active:scale-95 disabled:bg-gray-500 disabled:cursor-not-allowed"
             >
                 Fact Check Now
@@ -95,125 +96,144 @@ const ReportScreen: React.FC<ReportScreenProps> = ({ claim, result, sources, onR
             <div className="w-8"></div>
         </header>
 
-        <main className="flex-grow flex flex-col space-y-6 overflow-y-auto">
-            <div className="bg-[#FFC947] text-[#2D2A5C] p-6 rounded-[40px] shadow-lg space-y-4">
-                <p className="font-medium italic">"{claim}"</p>
-                <div className="border-t border-[#2D2A5C]/30 my-2"></div>
-                <div className="flex items-center space-x-3">
-                    <span className={`px-4 py-1 text-sm font-bold rounded-full border-2 ${verdictStyle.bg} ${verdictStyle.text} ${verdictStyle.border}`}>
-                        {result.verdict.toUpperCase()}
-                    </span>
-                    <p className="font-semibold text-lg">Verdict</p>
-                </div>
-                 <p className="text-sm">{result.summary_explanation}</p>
-            </div>
-
-            <div className="bg-[#2D2A5C] text-white p-6 rounded-[40px] shadow-lg space-y-3">
-                <div className="flex justify-between items-center font-medium">
-                    <span>Low Trust</span>
-                    <span className="text-2xl font-bold">{result.confidence_score}%</span>
-                    <span>High Trust</span>
-                </div>
-                <div className="w-full bg-[#201F3C] rounded-full h-4">
-                    <div
-                        className="bg-gradient-to-r from-purple-500 to-blue-400 h-4 rounded-full transition-width duration-500 ease-out"
-                        style={{ width: `${result.confidence_score}%` }}
-                    ></div>
-                </div>
-                <p className="text-center font-semibold">Fact Confidence Meter</p>
+        <main className="flex-grow flex flex-col space-y-6 overflow-y-auto pb-6">
+            <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg space-y-4 text-white">
+                 <p className="font-medium italic">"{claim}"</p>
             </div>
             
-            {sources.length > 0 && (
-                <div className="space-y-3">
-                    <h2 className="text-white font-semibold">Supporting Evidence/Sources</h2>
-                    <div className="space-y-3">
-                    {sources.map((source, index) => source.web && (
-                        <a href={source.web.uri} target="_blank" rel="noopener noreferrer" key={index} className="flex items-center justify-between bg-[#2D2A5C] text-white p-4 rounded-full shadow-lg transition-transform duration-200 hover:scale-105 active:scale-100">
-                           <span className="truncate pr-4 text-sm">{source.web.title}</span>
-                           <LinkIcon className="w-5 h-5 flex-shrink-0 text-gray-400" />
-                        </a>
-                    ))}
+            <div className={`${verdictStyle.bg} ${verdictStyle.text} p-6 rounded-[40px] shadow-lg space-y-4`}>
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center font-bold">
+                       <span>Verdict</span>
+                       <span>Confidence</span>
                     </div>
+                    <div className="flex items-center space-x-4">
+                       <div className={`px-4 py-1 rounded-full font-bold text-lg border-2 ${verdictStyle.border}`}>
+                            {result.verdict.toUpperCase()}
+                        </div>
+                        <div className="w-full bg-gray-300/50 rounded-full h-2.5">
+                            <div className={`${verdictStyle.progress} h-2.5 rounded-full`} style={{ width: `${result.confidence_score}%` }}></div>
+                        </div>
+                        <span className="font-bold w-12 text-right">{result.confidence_score}%</span>
+                    </div>
+                </div>
+                <div className="border-t border-gray-400/30 pt-4">
+                    <h2 className="text-lg font-bold">Summary</h2>
+                    <p>{result.summary_explanation}</p>
+                </div>
+            </div>
+
+            {sources && sources.length > 0 && (
+                <div className="bg-[#2D2A5C] p-6 rounded-[40px] shadow-lg text-white space-y-4">
+                    <h2 className="text-lg font-bold">Sources</h2>
+                    <ul className="space-y-3">
+                        {sources.map((source, index) => source.web && (
+                            <li key={index} className="flex items-center space-x-3 bg-[#201F3C] p-3 rounded-lg">
+                                <LinkIcon className="w-5 h-5 text-[#FFC947] flex-shrink-0" />
+                                <a href={source.web.uri} target="_blank" rel="noopener noreferrer" className="truncate hover:underline" title={source.web.title}>
+                                    {source.web.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             )}
         </main>
+    </div>
+    );
+};
+
+const loadingMessages = [
+    'Engaging neural networks...',
+    'Consulting knowledge graphs...',
+    'Synthesizing information...',
+    'Compiling verification report...',
+];
+
+const LoadingScreen: React.FC = () => {
+    const [messageIndex, setMessageIndex] = useState(0);
+
+    React.useEffect(() => {
+        const interval = setInterval(() => {
+            setMessageIndex(prev => (prev + 1) % loadingMessages.length);
+        }, 2500);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-white p-8">
+            <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-[#FFC947]"></div>
+            <h2 className="text-2xl font-bold mt-6">Verifying...</h2>
+            <p className="text-lg mt-2 text-gray-300 transition-opacity duration-500">{loadingMessages[messageIndex]}</p>
+        </div>
+    )
+};
+
+
+const App: React.FC = () => {
+    const [screen, setScreen] = useState<Screen>('input');
+    const [claim, setClaim] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [result, setResult] = useState<VerificationResult | null>(null);
+    const [sources, setSources] = useState<GroundingChunk[]>([]);
+
+    const handleFactCheck = useCallback(async () => {
+        if (!claim.trim()) return;
+
+        setIsLoading(true);
+        setError(null);
+        setResult(null);
+
+        try {
+            const { result: apiResult, sources: apiSources } = await performFactCheck(claim);
+            setResult(apiResult);
+            setSources(apiSources);
+            setScreen('report');
+        } catch (err: any) {
+            setError(err.message || 'An unexpected error occurred.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [claim]);
+
+    const handleReset = () => {
+        setScreen('input');
+        setResult(null);
+        setSources([]);
+        setError(null);
+        setIsLoading(false);
+    };
+
+    const renderContent = () => {
+        if (isLoading) {
+            return <LoadingScreen />;
+        }
+    
+        if (screen === 'report' && result) {
+            return <ReportScreen claim={claim} result={result} sources={sources} onReset={handleReset} />;
+        }
         
-        <footer className="pt-4">
-            <button
-                onClick={onReset}
-                className="w-full bg-[#FFC947] text-[#2D2A5C] font-bold text-lg py-4 rounded-full shadow-lg transition-transform duration-200 active:scale-95"
-            >
-                Start New Check
-            </button>
-        </footer>
-    </div>
-)};
-
-const LoadingOverlay: React.FC = () => (
-    <div className="absolute inset-0 bg-[#201F3C]/90 backdrop-blur-sm flex flex-col items-center justify-center z-50 text-white space-y-4 p-4 text-center">
-        <svg className="animate-spin h-12 w-12 text-[#FFC947]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <h2 className="text-xl font-bold text-[#FFC947]">Verifying Claim...</h2>
-        <p className="text-base text-gray-300">Our AI Analyst is on the case.</p>
-    </div>
-);
-
-
-function App() {
-  const [screen, setScreen] = useState<Screen>('input');
-  const [claim, setClaim] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<VerificationResult | null>(null);
-  const [sources, setSources] = useState<GroundingChunk[]>([]);
-
-  const handleFactCheck = useCallback(async () => {
-    if (!claim.trim()) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const { result: apiResult, sources: apiSources } = await factCheckWithGemini(claim);
-      setResult(apiResult);
-      setSources(apiSources);
-      setScreen('report');
-    } catch (err: any) {
-      setError(err.message || 'An unknown error occurred.');
-      // Keep user on input screen if there's an error
-    } finally {
-      setIsLoading(false);
-    }
-  }, [claim]);
-
-  const handleReset = useCallback(() => {
-    setScreen('input');
-    // We don't reset claim to allow user to edit it if they wish
-    setResult(null);
-    setSources([]);
-    setError(null);
-  }, []);
-
-  return (
-    <div className="min-h-screen bg-[#201F3C] text-white font-sans md:flex md:items-center md:justify-center md:p-4">
-        <div className="relative mx-auto max-w-md w-full h-screen bg-[#201F3C] flex flex-col overflow-hidden md:max-w-lg md:h-auto md:max-h-[95vh] md:rounded-[50px] md:shadow-2xl">
-            {isLoading && <LoadingOverlay />}
-            {error && (
-                <div className="absolute top-5 left-5 right-5 bg-red-500 text-white p-3 rounded-2xl z-20 text-sm shadow-lg">
-                    <strong>Error:</strong> {error}
-                </div>
-            )}
-            
-            <div className={`transition-transform duration-500 ease-in-out w-full flex-shrink-0 h-full ${screen === 'input' ? 'translate-x-0' : '-translate-x-full'}`}>
-                <InputScreen claim={claim} setClaim={setClaim} onFactCheck={handleFactCheck} />
+        return (
+            <div className="relative h-full">
+                <InputScreen claim={claim} setClaim={setClaim} onFactCheck={handleFactCheck} disabled={isLoading} />
+                 {error && (
+                    <div className="absolute bottom-6 left-6 right-6 bg-red-500 text-white p-3 rounded-lg text-center shadow-lg flex justify-between items-center">
+                        <span><strong>Error:</strong> {error}</span>
+                        <button onClick={() => setError(null)} className="font-bold text-xl px-2 leading-none">&times;</button>
+                    </div>
+                )}
             </div>
+        );
+    };
 
-            <div className={`absolute top-0 left-0 transition-transform duration-500 ease-in-out w-full h-full ${screen === 'report' ? 'translate-x-0' : 'translate-x-full'}`}>
-                 {result && <ReportScreen claim={claim} result={result} sources={sources} onReset={handleReset} />}
+    return (
+        <div className="w-full max-w-lg mx-auto h-full min-h-screen md:h-auto md:min-h-0 md:max-h-[90vh] md:my-8 bg-[#201F3C] text-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
+            <div className="flex-grow">
+              {renderContent()}
             </div>
         </div>
-    </div>
-  );
-}
+    );
+};
 
 export default App;

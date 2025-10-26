@@ -75,9 +75,18 @@ ${JSON.stringify(desiredJsonStructure)}
 
         let rawText = hfResult[0].generated_text.trim();
         
-        // The model might sometimes add extra text. We extract just the JSON part.
+        // The model might wrap the JSON in markdown backticks. Let's remove them.
+        if (rawText.startsWith('```json')) {
+            rawText = rawText.substring(7).trim();
+        }
+        if (rawText.endsWith('```')) {
+            rawText = rawText.slice(0, -3).trim();
+        }
+        
+        // The model might still add extra text. We extract just the JSON part.
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
+            console.error("Raw text from AI that failed JSON match:", rawText);
             throw new Error('AI response did not contain a valid JSON object.');
         }
         
