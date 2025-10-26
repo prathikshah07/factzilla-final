@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { GoogleGenAI } from '@google/genai';
 import type { VerificationResult, GroundingChunk, Verdict } from './types';
 import { 
     BackArrowIcon, LinkIcon, CheckCircleIcon, XCircleIcon, 
@@ -26,31 +25,6 @@ const getVerdictStyle = (verdict: Verdict) => {
     const key = verdict.toUpperCase().trim();
     return verdictStyles[key] || verdictStyles['UNSUPPORTED'];
 };
-
-// --- Gemini AI Configuration ---
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const systemInstruction = `You are a meticulous fact-checking AI. Your purpose is to analyze a given claim, use the provided Google Search results to determine its veracity, and return a structured JSON response.
-
-The JSON object you return must have the following structure and nothing else:
-{
-  "verdict": "string",
-  "confidence_score": number,
-  "summary_explanation": "string"
-}
-
-- "verdict": Must be one of the following strings: 'TRUE', 'FALSE', 'MISLEADING', 'UNSUPPORTED'.
-- "confidence_score": Must be an integer between 0 and 100, representing your confidence in the verdict.
-- "summary_explanation": A concise, neutral explanation for your verdict based on the search results.
-
-Analyze the user's claim and provide your response ONLY in the specified JSON format. Do not include any other text, markdown, or explanations outside of the JSON object.
-
-For example, for the claim "The sky is green", your response should be a single JSON object like this:
-{
-  "verdict": "FALSE",
-  "confidence_score": 100,
-  "summary_explanation": "Scientific evidence and common observation confirm that the Earth's sky appears blue during the day due to Rayleigh scattering of sunlight in the atmosphere. It is not green."
-}`;
-
 
 // --- Sub-components ---
 
@@ -214,7 +188,6 @@ const LoadingScreen: React.FC = () => {
     )
 };
 
-
 const App: React.FC = () => {
     const [screen, setScreen] = useState<Screen>('input');
     const [claim, setClaim] = useState('');
@@ -225,55 +198,41 @@ const App: React.FC = () => {
 
     const handleFactCheck = useCallback(async () => {
         if (!claim.trim()) return;
-        if (!process.env.API_KEY) {
-            setError("API_KEY is not configured. Please set it up in your environment.");
-            return;
-        }
 
         setIsLoading(true);
         setError(null);
         setResult(null);
         
         try {
-             const response = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: claim,
-                config: {
-                    systemInstruction: systemInstruction,
-                    tools: [{googleSearch: {}}],
+            // The backend is expected to be running on the same host, proxied to /api
+            const response = await fetch('/api/factcheck', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
+                body: JSON.stringify({ claim }),
             });
 
-            const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
-            const apiSources = groundingMetadata?.groundingChunks ?? [];
-            
-            // Clean the raw text response to ensure it's a valid JSON string
-            const resultText = response.text.replace(/```json/g, '').replace(/```/g, '').trim();
-
-            if (!resultText) {
-                throw new Error("The API returned an empty response. The claim might be un-verifiable.");
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
-            const apiResult = JSON.parse(resultText);
+            const data = await response.json();
 
-            // Basic validation of the parsed response
-            if (!apiResult.verdict || apiResult.confidence_score === undefined || !apiResult.summary_explanation) {
-                 throw new Error("The API response was missing required fields.");
-            }
-
-            setResult(apiResult);
-            setSources(apiSources);
+            setResult(data.result);
+            setSources(data.sources);
             setScreen('report');
         } catch (err: any) {
-            console.error("Error during Gemini API call:", err);
-            let errorMessage = 'An unexpected error occurred while contacting the Gemini API.';
-            if (err instanceof SyntaxError) {
-                errorMessage = "Failed to parse the API response. The model may have returned an invalid format.";
-            } else if (err.message) {
+            console.error("Error calling fact-check API:", err);
+            let errorMessage = 'An unexpected error occurred while contacting the server.';
+             if (err.message.includes('Failed to fetch')) {
+                errorMessage = "Could not connect to the backend server. Please ensure it is running and try again.";
+            } else {
                 errorMessage = err.message;
             }
             setError(errorMessage);
-            setScreen('input'); // Stay on input screen if there's an error
+            setScreen('input');
         } finally {
             setIsLoading(false);
         }
@@ -281,7 +240,6 @@ const App: React.FC = () => {
 
     const handleReset = () => {
         setScreen('input');
-        // Do not clear the claim so user can edit it if they want
         setResult(null);
         setSources([]);
         setError(null);
@@ -297,7 +255,6 @@ const App: React.FC = () => {
             return <ReportScreen claim={claim} result={result} sources={sources} onReset={handleReset} />;
         }
         
-        // Default to input screen
         return (
              <InputScreen 
                 claim={claim} 
