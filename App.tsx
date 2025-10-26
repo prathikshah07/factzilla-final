@@ -211,7 +211,11 @@ const App: React.FC = () => {
             setSources(apiSources);
             setScreen('report');
         } catch (err: any) {
-            setError(err.message || 'An unexpected error occurred.');
+            let errorMessage = err.message || 'An unexpected error occurred.';
+            if (errorMessage.includes('Failed to fetch')) {
+                errorMessage = 'Could not connect to the backend server. Please ensure it is running on http://localhost:3000 and try again.';
+            }
+            setError(errorMessage);
             // Stay on input screen if there's an error
             setScreen('input');
         } finally {
@@ -253,7 +257,7 @@ const App: React.FC = () => {
             <div className="flex-grow min-h-0 flex flex-col relative">
               {renderContent()}
               {error && !isLoading && (
-                    <div className="absolute bottom-4 left-4 right-4 bg-red-500 text-white p-3 rounded-lg text-center shadow-lg flex justify-between items-center animate-pulse">
+                    <div className="absolute bottom-4 left-4 right-4 bg-red-500 text-white p-3 rounded-lg shadow-lg flex justify-between items-center animate-pulse">
                         <span className="text-sm"><strong>Error:</strong> {error}</span>
                         <button onClick={() => setError(null)} className="font-bold text-xl px-2 leading-none" aria-label="Dismiss error">&times;</button>
                     </div>
